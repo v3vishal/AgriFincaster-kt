@@ -15,6 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key.Companion.Menu
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -218,7 +221,6 @@ fun RegistrationPage(navController: NavController) {
 
 @Composable
 fun HomeScreen(navController: NavController) {
-    // Show Bottom Nav Bar for inner navigation after login
     val bottomNavController = rememberNavController()
 
     Scaffold(
@@ -230,7 +232,6 @@ fun HomeScreen(navController: NavController) {
     }
 }
 
-// Bottom Navigation Bar Composable
 @Composable
 fun BottomNavigationBar(navController: NavController) {
     val items = listOf(
@@ -282,9 +283,32 @@ fun BottomNavHost(navController: NavHostController) {
 fun HomeScreen() {
     val hexC = "#eecf8c"
     val bghex = android.graphics.Color.parseColor(hexC)
-    Text("Home Screen", modifier = Modifier
-        .fillMaxSize()
-        .background(color = Color(bghex)), textAlign = TextAlign.Center)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color = Color(bghex))
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Image(
+            painter = painterResource(id = R.mipmap.agfc_logo_foreground),
+            contentDescription = "AGFC Logo",
+            modifier = Modifier.size(250.dp)
+        )
+
+        Text(
+            "Hi {user}, Welcome to AgriFincaster!",
+            style = TextStyle(fontSize = 36.sp, fontWeight = FontWeight.Bold),
+            modifier = Modifier.padding(top = 4.dp)
+        )
+
+        Text("AgriFincaster helps you to obtain Weather info, predict production and yield for your crops, and manage your finances! Click on the bottom buttons to navigate through the app.",
+            style = TextStyle(fontSize = 20.sp),
+            modifier = Modifier.padding(top = 8.dp)
+        )
+
+    }
 }
 
 @Composable
@@ -300,10 +324,43 @@ fun SettingsScreen() {
 fun WeatherScreen() {
     val hexC = "#eecf8c"
     val bghex = android.graphics.Color.parseColor(hexC)
-    Box(modifier = Modifier.fillMaxSize().background(color = Color(bghex))) {
-        Text("Weather Forecast Details", textAlign = TextAlign.Center)
-    }
+    var location by remember { mutableStateOf("") }
 
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color = Color(bghex))
+            .padding(16.dp)
+    ) {
+        Text(
+            "Weather Forecast Details",
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = location,
+            onValueChange = { location = it },
+            label = { Text("Enter Location") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = { /* TODO: add weather open-meteo api code */ },
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        ) {
+            Text("Get Forecast")
+        }
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        Text("   Weather information will be displayed here", textAlign = TextAlign.Center)
+    }
 }
 
 @Composable
@@ -339,6 +396,6 @@ fun AppNavigation() {
 @Composable
 fun Preview() {
     AgriFincasterTheme {
-        WeatherScreen()
+        HomeScreen(navController = rememberNavController())
     }
 }

@@ -2,8 +2,10 @@ package com.v3vishal.agrifincaster
 
 import android.media.Image
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.launch
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -43,7 +45,10 @@ import com.composables.core.MenuContent
 import com.composables.core.MenuItem
 import com.composables.core.rememberMenuState
 import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,7 +74,22 @@ sealed class BottomNavScreen(val route: String, val label: String, val icon: Int
     object Settings : BottomNavScreen("settings", "Settings", android.R.drawable.ic_dialog_info)
 }
 
+@Composable
+fun TemporaryMessage(message: String) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
+    SnackbarHost(hostState = snackbarHostState)
+
+    LaunchedEffect(message) {
+        scope.launch {
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
+}
 
 @Composable
 fun LoginPage(navController: NavController) {
@@ -77,6 +97,8 @@ fun LoginPage(navController: NavController) {
     var password by remember { mutableStateOf("") }
     val hexC = "#eecf8c"
     val bghex = android.graphics.Color.parseColor(hexC)
+    val auth = Firebase.auth
+    var temporaryMessage by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -156,8 +178,28 @@ fun LoginPage(navController: NavController) {
             }
         }
         //login button
-        Button(onClick = { navController.navigate(Screen.Home.route) }) {
+        Button(onClick = {
+            auth.signInWithEmailAndPassword(username, password)
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        temporaryMessage = "Welcome ${username}!"
+                        navController.navigate(Screen.Home.route)
+                    } else {
+                        temporaryMessage = "Invalid login details. Try again!"
+                    }
+                }
+        }) {
             Text("Login")
+        }
+
+        // Display TemporaryMessage if message is not null
+        temporaryMessage?.let { message ->
+            TemporaryMessage(message)
+            // Reset the message after it's displayed
+            LaunchedEffect(message) {
+                delay(5000) // Delay for 5 seconds
+                temporaryMessage = null
+            }
         }
         Spacer(modifier = Modifier.height(8.dp))
         //register button

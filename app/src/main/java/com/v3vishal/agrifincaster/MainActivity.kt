@@ -71,7 +71,7 @@ sealed class BottomNavScreen(val route: String, val label: String, val icon: Int
     object Weather : BottomNavScreen("weather", "Weather", R.mipmap.wficon_foreground)
     object Crops : BottomNavScreen("crops", "Crops", R.mipmap.cricon_foreground)
     object Reports : BottomNavScreen("reports", "Reports", android.R.drawable.ic_menu_report_image)
-    object Settings : BottomNavScreen("settings", "Settings", android.R.drawable.ic_dialog_info)
+    object Finances : BottomNavScreen("finances", "Finances", android.R.drawable.ic_input_add)
 }
 
 @Composable
@@ -163,13 +163,13 @@ fun LoginPage(navController: NavController) {
                                 .padding(vertical = 10.dp, horizontal = 10.dp))
                     }
                     MenuItem(modifier = Modifier.clip(RoundedCornerShape(6.dp)), onClick = { /* TODO handle click */ }) {
-                        BasicText("Hindi [DISABLED]",
+                        BasicText("Hindi",
                             Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 10.dp, horizontal = 10.dp))
                     }
                     MenuItem(modifier = Modifier.clip(RoundedCornerShape(6.dp)), onClick = { /* TODO handle click */ }) {
-                        BasicText("Tamil [DISABLED]",
+                        BasicText("Tamil",
                             Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 10.dp, horizontal = 10.dp))
@@ -291,7 +291,7 @@ fun BottomNavigationBar(navController: NavController) {
         BottomNavScreen.Weather,
         BottomNavScreen.Crops,
         BottomNavScreen.Reports,
-        BottomNavScreen.Settings
+        BottomNavScreen.Finances
     )
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -324,7 +324,7 @@ fun BottomNavigationBar(navController: NavController) {
 fun BottomNavHost(navController: NavHostController) {
     NavHost(navController = navController, startDestination = BottomNavScreen.Home.route) {
         composable(BottomNavScreen.Home.route) { HomeScreen() }
-        composable(BottomNavScreen.Settings.route) { SettingsScreen() }
+        composable(BottomNavScreen.Finances.route) { FinancesScreen() }
         composable(BottomNavScreen.Weather.route) { WeatherScreen() }
         composable(BottomNavScreen.Crops.route) { CropsScreen() }
         composable(BottomNavScreen.Reports.route) { ReportsScreen() }
@@ -364,12 +364,65 @@ fun HomeScreen() {
 }
 
 @Composable
-fun SettingsScreen() {
+fun FinancesScreen() {
     val hexC = "#eecf8c"
     val bghex = android.graphics.Color.parseColor(hexC)
-    Text("Settings Screen", modifier = Modifier
-        .fillMaxSize()
-        .background(color = Color(bghex)), textAlign = TextAlign.Center)
+    var cpkg by remember { mutableStateOf("") }
+    var prkg by remember { mutableStateOf("") }
+    var exps by remember { mutableStateOf("") }
+    var fnrp by remember { mutableStateOf("   Finances Report will be displayed here") }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color = Color(bghex))
+            .padding(16.dp)
+    ) {
+        Text(
+            "Finances Manager",
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = cpkg,
+            onValueChange = { cpkg = it },
+            label = { Text("Enter Crop Price per kg") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+        OutlinedTextField(
+            value = prkg,
+            onValueChange = { prkg = it },
+            label = { Text("Enter Crop Production in kg / Leave blank for (GPS)") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+        OutlinedTextField(
+            value = exps,
+            onValueChange = { exps = it },
+            label = { Text("Enter Expenses / Leave blank for Auto Predict") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = { /* TODO: add weather open-meteo api code */
+                fnrp = if(fnrp == "   Finances Report will be displayed here") "Total Revenue: Rs. 1650\nExpenses: Rs. 1000\nNet Revenue: Rs.650" else "Total Revenue: Rs. 2500\nExpenses: Rs.1200\nNet Revenue: Rs. 1300"
+            },
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+
+        ) {
+            Text("Register Info")
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(fnrp)
+    }
 }
 
 @Composable
@@ -377,6 +430,7 @@ fun WeatherScreen() {
     val hexC = "#eecf8c"
     val bghex = android.graphics.Color.parseColor(hexC)
     var location by remember { mutableStateOf("") }
+    var winfo by remember { mutableStateOf("   Weather information will be displayed here") }
 
     Column(
         modifier = Modifier
@@ -403,7 +457,9 @@ fun WeatherScreen() {
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
-            onClick = { /* TODO: add weather open-meteo api code */ },
+            onClick = { /* TODO: add weather open-meteo api code */
+                winfo = if(winfo == "   Weather information will be displayed here") "(GPS) Chikkegowdanapalya, Bengaluru Rural, Bengaluru, Karnataka: \n\n25deg Celsius, 80% Precipitation - Good to grow Sugarcane!" else "Uttar Pradesh, Ghaziabad, Loni, West Ghat: \n\n24deg Celsius, 50% precipitation - Good to grow Paddy and Beans!"
+            },
             modifier = Modifier.align(Alignment.CenterHorizontally)
         ) {
             Text("Get Forecast")
@@ -411,7 +467,7 @@ fun WeatherScreen() {
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        Text("   Weather information will be displayed here", textAlign = TextAlign.Center)
+        Text(winfo, textAlign = TextAlign.Center)
     }
 }
 
@@ -419,18 +475,73 @@ fun WeatherScreen() {
 fun CropsScreen() {
     val hexC = "#eecf8c"
     val bghex = android.graphics.Color.parseColor(hexC)
-    Text("Crops Screen", modifier = Modifier
-        .fillMaxSize()
-        .background(color = Color(bghex)), textAlign = TextAlign.Center)
+    var crtype by remember { mutableStateOf("") }
+    var area by remember { mutableStateOf("") }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(color = Color(bghex))
+            .padding(16.dp)
+    ) {
+        Text(
+            "Crop Production Yield Predictor",
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = crtype,
+            onValueChange = { crtype = it },
+            label = { Text("Enter Crop Type/Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+        OutlinedTextField(
+            value = area,
+            onValueChange = { area = it },
+            label = { Text("Enter Crop Area (in Acres)") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = { /* TODO: add weather open-meteo api code */ },
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        ) {
+            Text("Register Info")
+        }
+    }
 }
 
 @Composable
 fun ReportsScreen() {
     val hexC = "#eecf8c"
     val bghex = android.graphics.Color.parseColor(hexC)
-    Text("Reports Screen", modifier = Modifier
+    var crinfo by remember { mutableStateOf("    Crop Information will be displayed here") }
+    Column(modifier = Modifier
         .fillMaxSize()
-        .background(color = Color(bghex)), textAlign = TextAlign.Center)
+        .background(color = Color(bghex))
+        .padding(16.dp)) {
+        Text("       Location: (GPS) Report: Wheat - 3 Acres")
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = { /* TODO: add weather open-meteo api code */
+                crinfo = if(crinfo == "    Crop Information will be displayed here") "             Crop: Wheat \n           Area: 3 Acres \n                Ideal Production: 33kg\n              Ideal Yield: 11kg/acre (GPS)" else TODO()
+            },
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        ) {
+            Text("Get Report")
+        }
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        Text(crinfo, textAlign = TextAlign.Center)
+    }
 }
 
 @Composable
@@ -448,6 +559,6 @@ fun AppNavigation() {
 @Composable
 fun Preview() {
     AgriFincasterTheme {
-        HomeScreen(navController = rememberNavController())
+        FinancesScreen()
     }
 }

@@ -93,7 +93,7 @@ fun TemporaryMessage(message: String) {
 
 @Composable
 fun LoginPage(navController: NavController) {
-    var username by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val hexC = "#eecf8c"
     val bghex = android.graphics.Color.parseColor(hexC)
@@ -112,9 +112,9 @@ fun LoginPage(navController: NavController) {
         Image(painter = painterResource(id = R.mipmap.agfc_logo_foreground), contentDescription = "Logo")
         //username-field
         OutlinedTextField(
-            value = username,
-            onValueChange = { username = it },
-            label = { Text("Username") },
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email") },
         )
         Spacer(modifier = Modifier.height(8.dp))
         //password-field
@@ -179,10 +179,10 @@ fun LoginPage(navController: NavController) {
         }
         //login button
         Button(onClick = {
-            auth.signInWithEmailAndPassword(username, password)
+            auth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful) {
-                        temporaryMessage = "Welcome ${username}!"
+                        temporaryMessage = "Welcome ${email}!"
                         navController.navigate(Screen.Home.route)
                     } else {
                         temporaryMessage = "Invalid login details. Try again!"
@@ -217,6 +217,8 @@ fun RegistrationPage(navController: NavController) {
     var confirmPassword by remember { mutableStateOf("") }
     val hexC = "#eecf8c"
     val bghex = android.graphics.Color.parseColor(hexC)
+    val auth = Firebase.auth
+    var temporaryMessage by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -242,7 +244,7 @@ fun RegistrationPage(navController: NavController) {
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") },
+            label = { Text("Password (Min. 6 Characters)") },
             visualTransformation = PasswordVisualTransformation(),
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -254,7 +256,15 @@ fun RegistrationPage(navController: NavController) {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Button(
-            onClick = { navController.navigate(Screen.Login.route) },
+            onClick = { auth.createUserWithEmailAndPassword(email, password)
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        temporaryMessage = "Registered ${username}!"
+                        navController.navigate(Screen.Login.route)
+                    } else {
+                        temporaryMessage = "Couldn't register. Try again!"
+                    }
+                } },
         ) {
             Text("Register")
         }
@@ -340,7 +350,7 @@ fun HomeScreen() {
         )
 
         Text(
-            "Hi {user}, Welcome to AgriFincaster!",
+            "Hi there, Welcome to AgriFincaster!",
             style = TextStyle(fontSize = 36.sp, fontWeight = FontWeight.Bold),
             modifier = Modifier.padding(top = 4.dp)
         )

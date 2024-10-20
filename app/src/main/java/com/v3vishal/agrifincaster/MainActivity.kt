@@ -66,12 +66,12 @@ sealed class Screen(val route: String) {
 }
 
 // Define the bottom navigation screens
-sealed class BottomNavScreen(val route: String, val label: String, val icon: Int) {
-    object Home : BottomNavScreen("home", "Home", R.mipmap.hicon_foreground)
-    object Weather : BottomNavScreen("weather", "Weather", R.mipmap.wficon_foreground)
-    object Crops : BottomNavScreen("crops", "Crops", R.mipmap.cricon_foreground)
-    object Reports : BottomNavScreen("reports", "Reports", android.R.drawable.ic_menu_report_image)
-    object Finances : BottomNavScreen("finances", "Finances", android.R.drawable.ic_input_add)
+sealed class BottomNavScreen(val route: String, val label: String, val icon: Int, val heading: String) {
+    object Home : BottomNavScreen("home", "Home", R.mipmap.hicon_foreground, "AgriFinCaster Homepage")
+    object Weather : BottomNavScreen("weather", "Weather", R.mipmap.wficon_foreground, "Weather Forecast Details")
+    object Crops : BottomNavScreen("crops", "Crops", R.mipmap.cricon_foreground,"Crop Yield and Production Predictor")
+    object Reports : BottomNavScreen("reports", "Reports", android.R.drawable.ic_menu_report_image,"Crop Reports")
+    object Finances : BottomNavScreen("finances", "Finances", android.R.drawable.ic_input_add,"Finances Manager")
 }
 
 @Composable
@@ -335,6 +335,7 @@ fun BottomNavHost(navController: NavHostController) {
 fun HomeScreen() {
     val hexC = "#eecf8c"
     val bghex = android.graphics.Color.parseColor(hexC)
+    val heading = BottomNavScreen.Home.heading
 
     Column(
         modifier = Modifier
@@ -343,6 +344,14 @@ fun HomeScreen() {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Text(
+            heading,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
         Image(
             painter = painterResource(id = R.mipmap.agfc_logo_foreground),
             contentDescription = "AGFC Logo",
@@ -367,6 +376,7 @@ fun HomeScreen() {
 fun FinancesScreen() {
     val hexC = "#eecf8c"
     val bghex = android.graphics.Color.parseColor(hexC)
+    val heading = BottomNavScreen.Finances.heading
     var cpkg by remember { mutableStateOf("") }
     var prkg by remember { mutableStateOf("") }
     var exps by remember { mutableStateOf("") }
@@ -378,7 +388,7 @@ fun FinancesScreen() {
             .padding(16.dp)
     ) {
         Text(
-            "Finances Manager",
+            heading,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
             style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -412,7 +422,7 @@ fun FinancesScreen() {
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
-            onClick = { /* TODO: add weather open-meteo api code */
+            onClick = { /* TODO: add finance manager code */
                 fnrp = if(fnrp == "   Finances Report will be displayed here") "Total Revenue: Rs. 1650\nExpenses: Rs. 1000\nNet Revenue: Rs.650" else "Total Revenue: Rs. 2500\nExpenses: Rs.1200\nNet Revenue: Rs. 1300"
             },
             modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -431,6 +441,7 @@ fun WeatherScreen() {
     val bghex = android.graphics.Color.parseColor(hexC)
     var location by remember { mutableStateOf("") }
     var winfo by remember { mutableStateOf("   Weather information will be displayed here") }
+
 
     Column(
         modifier = Modifier
@@ -458,7 +469,7 @@ fun WeatherScreen() {
 
         Button(
             onClick = { /* TODO: add weather open-meteo api code */
-                winfo = if(winfo == "   Weather information will be displayed here") "(GPS) Chikkegowdanapalya, Bengaluru Rural, Bengaluru, Karnataka: \n\n25deg Celsius, 80% Precipitation - Good to grow Sugarcane!" else "Uttar Pradesh, Ghaziabad, Loni, West Ghat: \n\n24deg Celsius, 50% precipitation - Good to grow Paddy and Beans!"
+
             },
             modifier = Modifier.align(Alignment.CenterHorizontally)
         ) {
@@ -510,7 +521,9 @@ fun CropsScreen() {
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
-            onClick = { /* TODO: add weather open-meteo api code */ },
+            onClick = { /* TODO: add weather open-meteo api code */
+
+            },
             modifier = Modifier.align(Alignment.CenterHorizontally)
         ) {
             Text("Register Info")

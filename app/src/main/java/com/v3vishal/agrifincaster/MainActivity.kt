@@ -441,7 +441,7 @@ fun WeatherScreen() {
     val bghex = android.graphics.Color.parseColor(hexC)
     var location by remember { mutableStateOf("") }
     var winfo by remember { mutableStateOf("   Weather information will be displayed here") }
-
+    
 
     Column(
         modifier = Modifier

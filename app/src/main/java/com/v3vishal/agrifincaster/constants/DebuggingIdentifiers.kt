@@ -1,4 +1,4 @@
-package com.v3vishal.agrifincaster.constants
+package com.delasign.samplestarterproject.models.constants
 
 object DebuggingIdentifiers {
     val actionOrEventSucceded: String = "✅"

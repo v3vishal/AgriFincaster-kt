@@ -1,19 +1,27 @@
 package com.v3vishal.agrifincaster
 
+import android.content.Context
 import android.media.Image
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.launch
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key.Companion.Menu
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -49,6 +58,17 @@ import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.android.volley.Request
+import com.android.volley.RequestQueue
+import com.android.volley.VolleyError
+import com.android.volley.toolbox.JsonObjectRequest
+import com.android.volley.toolbox.Volley
+import com.google.gson.Gson
+import org.json.JSONException
+import org.json.JSONObject
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,6 +93,24 @@ sealed class BottomNavScreen(val route: String, val label: String, val icon: Int
     object Reports : BottomNavScreen("reports", "Reports", android.R.drawable.ic_menu_report_image,"Crop Reports")
     object Finances : BottomNavScreen("finances", "Finances", android.R.drawable.ic_input_add,"Finances Manager")
 }
+
+data class GeocodeResponse(
+    val addresses: List<Address>?
+)
+
+data class Address(
+    val address: AddressDetails?,
+    val position: Position?
+)
+
+data class AddressDetails(
+    val freeformAddress: String?
+)
+
+data class Position(
+    val lat: Double?,
+    val lon: Double?
+)
 
 @Composable
 fun TemporaryMessage(message: String) {
@@ -109,7 +147,7 @@ fun LoginPage(navController: NavController) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         //logo
-        Image(painter = painterResource(id = R.mipmap.agfc_logo_foreground), contentDescription = "Logo")
+        Image(painter = painterResource(id = R.drawable.agfclogohighres), contentDescription = "Logo")
         //username-field
         OutlinedTextField(
             value = email,
@@ -179,15 +217,21 @@ fun LoginPage(navController: NavController) {
         }
         //login button
         Button(onClick = {
-            auth.signInWithEmailAndPassword(email, password)
-                .addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        temporaryMessage = "Welcome ${email}!"
-                        navController.navigate(Screen.Home.route)
-                    } else {
-                        temporaryMessage = "Invalid login details. Try again!"
+            if((email.length != 0) or (password.length != 0)) {
+                auth.signInWithEmailAndPassword(email, password)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            temporaryMessage = "Welcome ${email}!"
+                            navController.navigate("home") {
+                                popUpTo("login") { inclusive = true }
+                            }
+                        } else {
+                            temporaryMessage = "Invalid login details. Try again!"
+                        }
                     }
-                }
+            } else {
+                temporaryMessage = "Enter details to log in!"
+            }
         }) {
             Text("Login")
         }
@@ -271,11 +315,29 @@ fun RegistrationPage(navController: NavController) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController) {
+fun HomeScreen(@Suppress("UNUSED_PARAMETER") navController: NavController) {
     val bottomNavController = rememberNavController()
-
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("AgriFincaster") },
+                actions = {
+                    IconButton(onClick = {
+                        Firebase.auth.signOut()
+                        navController.navigate("login") {
+                            popUpTo("home") { inclusive = true }
+                        }
+                    }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "Sign Out"
+                        )
+                    }
+                }
+            )
+        },
         bottomBar = { BottomNavigationBar(bottomNavController) }
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
@@ -434,6 +496,55 @@ fun FinancesScreen() {
         Text(fnrp)
     }
 }
+fun makeApiRequest(context: Context, url: String, onResponse: (List<Pair<String, Pair<Double, Double>>>) -> Unit, onError: (VolleyError) -> Unit) {
+    val request = JsonObjectRequest(
+        Request.Method.GET, url, null,
+        { response ->
+            val resultsArray = response.getJSONArray("results")
+            val locations = mutableListOf<Pair<String, Pair<Double, Double>>>()
+
+            for (i in 0 until resultsArray.length()) {
+                val result = resultsArray.getJSONObject(i)
+                val address = result.getJSONObject("address").getString("freeformAddress")
+                val position = result.getJSONObject("position")
+                val lat = position.getDouble("lat")
+                val lon = position.getDouble("lon")
+                locations.add(address to (lat to lon))
+            }
+            onResponse(locations)
+        },
+        { error -> onError(error) }
+    )
+    Volley.newRequestQueue(context).add(request)
+}
+fun getWeatherData(context: Context, url: String, onResponse: (String) -> Unit, onError: (VolleyError) -> Unit) {
+    val request = JsonObjectRequest(
+        Request.Method.GET, url, null,
+        { response ->
+            val currentTemp = response.getJSONObject("current").getDouble("temperature_2m")
+            val daily = response.getJSONObject("daily")
+            val dates = daily.getJSONArray("time")
+            val tempMax = daily.getJSONArray("temperature_2m_max")
+            val tempMin = daily.getJSONArray("temperature_2m_min")
+            val daylightDuration = daily.getJSONArray("daylight_duration")
+            val precipitationHours = daily.getJSONArray("precipitation_hours")
+
+            // Formatting the data
+            val dailyForecast = StringBuilder("Current Temperature: $currentTemp°C\n\n7-Day Forecast:\n")
+            for (i in 0 until dates.length()) {
+                dailyForecast.append(
+                    "Date: ${dates.getString(i)}\n" +
+                            "Max Temp: ${tempMax.getDouble(i)}°C, Min Temp: ${tempMin.getDouble(i)}°C\n" +
+                            "Daylight: ${daylightDuration.getDouble(i)} seconds, Precipitation Hours: ${precipitationHours.getInt(i)} hours\n\n"
+                )
+            }
+
+            onResponse(dailyForecast.toString())
+        },
+        { error -> onError(error) }
+    )
+    Volley.newRequestQueue(context).add(request)
+}
 
 @Composable
 fun WeatherScreen() {
@@ -441,7 +552,12 @@ fun WeatherScreen() {
     val bghex = android.graphics.Color.parseColor(hexC)
     var location by remember { mutableStateOf("") }
     var winfo by remember { mutableStateOf("   Weather information will be displayed here") }
-    
+    var addressList by remember { mutableStateOf(listOf<Pair<String, Pair<Double, Double>>>()) }
+    var selecAddress by remember { mutableStateOf<String?>(null) }
+    var selectedLatLng by remember { mutableStateOf<Pair<Double, Double>?>(null) }
+    var wfield by remember { mutableStateOf("Enter Location") }
+    var dailyForecast by remember { mutableStateOf<List<String>>(emptyList()) }
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -460,16 +576,69 @@ fun WeatherScreen() {
 
         OutlinedTextField(
             value = location,
-            onValueChange = { location = it },
-            label = { Text("Enter Location") },
+            onValueChange = {
+                location = it
+                if (location.length >= 3) {
+                    val url =
+                        "https://api.tomtom.com/search/2/geocode/$location.json?key=k6cSq5FLgC72KvbQLOVOWZLq7JAiAmtY&countrySet=IN"
+                    makeApiRequest(
+                        context = context,
+                        url = url,
+                        onResponse = { results ->
+                            addressList = results
+                        },
+                        onError = { /* Handle error */ }
+                    )
+                } else {
+                    addressList = emptyList()
+                }
+            },
+            label = { Text(wfield) },
             modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
-            onClick = { /* TODO: add weather open-meteo api code */
+        AnimatedVisibility(visible = selecAddress == null) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 200.dp) // Define a max height for visibility
+            ) {
+                items(addressList) { address ->
+                    Text(
+                        text = address.first,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                selecAddress = address.first
+                                selectedLatLng = address.second
+                                location = address.first
+                                addressList = emptyList()
+                            }
+                            .padding(8.dp),
+                        style = TextStyle(fontSize = 16.sp)
+                    )
+                }
+            }
+        }
 
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                selectedLatLng?.let { latLng ->
+                    val weatherUrl = "https://api.open-meteo.com/v1/forecast?latitude=${latLng.first}&longitude=${latLng.second}&current=temperature_2m&daily=temperature_2m_max,temperature_2m_min,daylight_duration,precipitation_hours&timezone=auto"
+                    getWeatherData(
+                        context = context,
+                        url = weatherUrl,
+                        onResponse = { data ->
+                            winfo = "${selecAddress}\nLatitude: ${latLng.first}, Longitude: ${latLng.second}\n\nCurrent Temperature:\n${data.split("\n\n")[0]}"
+                            dailyForecast = data.split("\n\n").drop(1)
+                        },
+                        onError = { /* Handle error here */ }
+                    )
+                }
             },
             modifier = Modifier.align(Alignment.CenterHorizontally)
         ) {
@@ -479,6 +648,25 @@ fun WeatherScreen() {
         Spacer(modifier = Modifier.height(48.dp))
 
         Text(winfo, textAlign = TextAlign.Center)
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f) // Make this scrollable list fill remaining space
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            items(dailyForecast) { forecast ->
+                Text(
+                    text = forecast,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    style = TextStyle(fontSize = 14.sp)
+                )
+            }
+        }
     }
 }
 
@@ -540,11 +728,11 @@ fun ReportsScreen() {
         .fillMaxSize()
         .background(color = Color(bghex))
         .padding(16.dp)) {
-        Text("       Location: (GPS) Report: Wheat - 3 Acres")
+        Text("Location Not Registered.")
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = { /* TODO: add weather open-meteo api code */
-                crinfo = if(crinfo == "    Crop Information will be displayed here") "             Crop: Wheat \n           Area: 3 Acres \n                Ideal Production: 33kg\n              Ideal Yield: 11kg/acre (GPS)" else TODO()
+                //crinfo = if(crinfo == "    Crop Information will be displayed here") "             Crop: Wheat \n           Area: 3 Acres \n                Ideal Production: 33kg\n              Ideal Yield: 11kg/acre (GPS)" else TODO()
             },
             modifier = Modifier.align(Alignment.CenterHorizontally)
         ) {
@@ -558,20 +746,43 @@ fun ReportsScreen() {
 }
 
 @Composable
+fun MainScreen(navController: NavHostController) {
+    val user = Firebase.auth.currentUser
+
+    LaunchedEffect(user) {
+        if (user != null) {
+            navController.navigate("home") {
+                popUpTo("login") { inclusive = true }
+            }
+        } else {
+            navController.navigate("login") {
+                popUpTo("home") { inclusive = true }
+            }
+        }
+    }
+
+    NavHost(
+        navController,
+        startDestination = if (user != null) "home" else "login"
+    ) {
+        composable("login") { LoginPage(navController) }
+        composable("home") { HomeScreen(navController) }
+        composable("registration") { RegistrationPage(navController) }
+    }
+}
+
+
+@Composable
 fun AppNavigation() {
     val navController = rememberNavController()
-
-    NavHost(navController = navController, startDestination = Screen.Login.route) {
-        composable(Screen.Login.route) { LoginPage(navController) }
-        composable(Screen.Registration.route) { RegistrationPage(navController) }
-        composable(Screen.Home.route) { HomeScreen(navController) }
-    }
+    MainScreen(navController)
 }
 
 @Preview(showBackground = true)
 @Composable
 fun Preview() {
     AgriFincasterTheme {
-        FinancesScreen()
+        val navController = rememberNavController()
+        WeatherScreen()
     }
 }
